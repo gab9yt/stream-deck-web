@@ -1,97 +1,61 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>StreamDeck C3 - Configurateur</title>
+    <title>Configurateur 19200</title>
     <style>
-        body { background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 40px; }
-        .container { background: #1e293b; border-radius: 20px; padding: 30px; display: inline-block; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
-        .status { margin: 20px; padding: 10px; border-radius: 10px; font-weight: bold; background: #334155; }
-        .keys-display { font-size: 32px; color: #10b981; margin: 30px; min-height: 50px; background: #0f172a; padding: 20px; border-radius: 10px; border: 2px dashed #334155; }
-        button { cursor: pointer; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; font-weight: bold; transition: 0.2s; margin: 10px; }
-        .btn-connect { background: #3b82f6; color: white; }
-        .btn-save { background: #10b981; color: white; opacity: 0.5; }
-        button:hover:not(:disabled) { transform: scale(1.05); filter: brightness(1.1); }
-        button:disabled { cursor: not-allowed; }
+        body { background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
+        .box { background: #333; padding: 30px; border-radius: 20px; display: inline-block; }
+        .key-view { font-size: 40px; color: #00ff88; margin: 20px; }
+        button { padding: 15px 25px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; margin: 10px; }
+        #btnConnect { background: #4444ff; color: white; }
+        #btnSave { background: #00aa66; color: white; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 StreamDeck C3</h1>
-        <div id="status" class="status">Statut : Non connecté</div>
-        
-        <button id="btnConnect" class="btn-connect">1. Brancher & Sélectionner l'ESP32</button>
-        
-        <p>Appuyez sur vos touches clavier (ex: Ctrl + C) :</p>
-        <div id="display" class="keys-display">---</div>
-        
-        <button id="btnSave" class="btn-save" disabled>2. Enregistrer sur la carte</button>
-        <button id="btnClear" style="background:#ef4444; color:white;">Effacer</button>
+    <div class="box">
+        <h1>Config StreamDeck (19200)</h1>
+        <button id="btnConnect">1. Connecter l'USB</button>
+        <div class="key-view" id="display">---</div>
+        <button id="btnSave" disabled>2. Envoyer la Touche</button>
+        <p>Statut : <span id="stat">Déconnecté</span></p>
     </div>
 
     <script>
-        let port; 
-        let codes = [];
-        const btnConnect = document.getElementById('btnConnect');
-        const btnSave = document.getElementById('btnSave');
-        const display = document.getElementById('display');
-        const status = document.getElementById('status');
+        let port; let codes = [];
+        const stat = document.getElementById('stat');
 
-        // Mapping des touches spéciales pour l'ESP32
-        const specialKeys = {
-            'Control': 128, 'Shift': 129, 'Alt': 130, 'Meta': 131, 'OS': 131
-        };
-
-        btnConnect.onclick = async () => {
+        document.getElementById('btnConnect').onclick = async () => {
             try {
                 port = await navigator.serial.requestPort();
-                await port.open({ baudRate: 115200 });
-                status.innerText = "Statut : ✅ Connecté à l'ESP32";
-                status.style.color = "#10b981";
-                btnSave.disabled = false;
-                btnSave.style.opacity = "1";
-            } catch (err) {
-                alert("Erreur : " + err.message);
-            }
+                // ON FORCE LE 19200 ICI
+                await port.open({ baudRate: 19200 }); 
+                stat.innerText = "Connecté !";
+                document.getElementById('btnSave').disabled = false;
+            } catch (e) { alert("Erreur: " + e.message); }
         };
 
         window.onkeydown = (e) => {
             e.preventDefault();
-            let keyName = e.key;
-            let code = e.keyCode;
-
-            if (specialKeys[e.key]) {
-                code = specialKeys[e.key];
-            }
-
-            if (!codes.includes(code)) {
-                codes.push(code);
-                render();
+            let c = e.keyCode;
+            if(e.key === "Control") c = 128;
+            if(e.key === "Shift")   c = 129;
+            if(e.key === "Alt")     c = 130;
+            if(e.key === "Meta")    c = 131;
+            if(!codes.includes(c)) {
+                codes.push(c);
+                document.getElementById('display').innerText = codes.join(" + ");
             }
         };
 
-        function render() {
-            display.innerText = codes.length > 0 ? codes.join(" + ") : "---";
-        }
-
-        document.getElementById('btnClear').onclick = () => {
-            codes = [];
-            render();
-        };
-
-        btnSave.onclick = async () => {
-            if (codes.length === 0) return alert("Choisis des touches d'abord !");
-            
-            const encoder = new TextEncoder();
+        document.getElementById('btnSave').onclick = async () => {
             const writer = port.writable.getWriter();
-            const message = "SET:" + codes.join(",") + "\n";
-            
-            await writer.write(encoder.encode(message));
+            const data = "SET:" + codes.join(",") + "\n";
+            await writer.write(new TextEncoder().encode(data));
             writer.releaseLock();
-            
-            alert("Configuration envoyée ! L'appareil va redémarrer.");
+            alert("Envoyé ! L'ESP32 redémarre.");
             codes = [];
-            render();
+            document.getElementById('display').innerText = "---";
         };
     </script>
 </body>
