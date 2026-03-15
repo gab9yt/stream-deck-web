@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Configurateur ESP32-C3</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding-top: 50px; }
+        .card { background: #1e1e1e; border-radius: 15px; padding: 30px; display: inline-block; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        select, button { padding: 12px; font-size: 16px; border-radius: 8px; border: none; margin: 10px; cursor: pointer; }
+        button { background: #007bff; color: white; font-weight: bold; }
+        button:disabled { background: #444; }
+        #status { color: #00ff00; margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Configurateur StreamDeck</h1>
+    <p>Branchez l'ESP32 en USB et cliquez sur Connecter.</p>
+    
+    <button id="connectBtn">1. Connecter l'ESP32</button>
+    <br><br>
+    
+    <select id="keySelect" disabled>
+        <option value="131">Touche Windows (GUI)</option>
+        <option value="176">Touche Entrée</option>
+        <option value="179">Espace</option>
+        <option value="128">Ctrl Gauche</option>
+        <option value="130">Alt Gauche</option>
+        <option value="211">Supprimer (Del)</option>
+    </select>
+    
+    <button id="sendBtn" disabled>2. Enregistrer la touche</button>
+    
+    <div id="status">Statut : Non connecté</div>
+</div>
+
+<script>
+    let port;
+    let writer;
+
+    const connectBtn = document.getElementById('connectBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const keySelect = document.getElementById('keySelect');
+    const status = document.getElementById('status');
+
+    connectBtn.addEventListener('click', async () => {
+        try {
+            // Demander l'accès au port série (USB)
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 115200 });
+            
+            status.innerText = "Statut : Connecté à l'ESP32 !";
+            connectBtn.disabled = true;
+            sendBtn.disabled = false;
+            keySelect.disabled = false;
+        } catch (e) {
+            status.innerText = "Erreur : " + e;
+        }
+    });
+
+    sendBtn.addEventListener('click', async () => {
+        const val = keySelect.value;
+        const encoder = new TextEncoder();
+        const data = encoder.encode("SET_KEY:" + val + "\n");
+        
+        const writer = port.writable.getWriter();
+        await writer.write(data);
+        writer.releaseLock();
+        
+        status.innerText = "Statut : Touche envoyée ! L'ESP32 redémarre...";
+    });
+</script>
+</body>
+</html>
